@@ -1,0 +1,12 @@
+[submodule "vendor/vk-bootstrap"]
+	path = vendor/vk-bootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap.git
+[submodule "vendor/VulkanMemoryAllocator"]
+	path = vendor/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "vendor/fastgltf"]
+	path = vendor/fastgltf
+	url = https://github.com/spnda/fastgltf.git
+[submodule "vendor/imgui1.90"]
+	path = vendor/imgui1.90
+	url = https://github.com/ocornut/imgui.git
