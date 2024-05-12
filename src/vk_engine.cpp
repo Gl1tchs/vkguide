@@ -18,6 +18,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -113,14 +114,25 @@ void VulkanEngine::run() {
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
 
-		if (ImGui::Begin("background")) {
+		if (ImGui::Begin("Background")) {
 			ComputeEffect& selected =
 					_background_effects[_current_background_effect];
 
-			ImGui::Text("Selected effect: %s", selected.name);
+            // draw combo box for shader selection
+			{
+				static auto get_effect_name = [](const ComputeEffect& effect) {
+					return effect.name;
+				};
 
-			ImGui::SliderInt("Effect Index", &_current_background_effect, 0,
-					_background_effects.size() - 1);
+				std::vector<const char*> effect_names(
+						_background_effects.size());
+				std::transform(_background_effects.begin(),
+						_background_effects.end(), effect_names.begin(),
+						get_effect_name);
+
+				ImGui::Combo("Effect", &_current_background_effect,
+						effect_names.data(), effect_names.size());
+			}
 
 			ImGui::InputFloat4("data1", (float*)&selected.data.data1);
 			ImGui::InputFloat4("data2", (float*)&selected.data.data2);
