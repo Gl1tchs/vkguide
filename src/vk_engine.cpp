@@ -327,10 +327,10 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd) {
 	// bind the descriptor set containing the draw image for the compute
 	// pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
-			_gradient_pipeline_layout, 0, 1, &_draw_image_descriptors, 0,
+			_background_pipeline_layout, 0, 1, &_draw_image_descriptors, 0,
 			nullptr);
 
-	vkCmdPushConstants(cmd, _gradient_pipeline_layout,
+	vkCmdPushConstants(cmd, _background_pipeline_layout,
 			VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants),
 			&effect.data);
 
@@ -498,9 +498,9 @@ void VulkanEngine::init_commands() {
 }
 
 void VulkanEngine::init_sync_structures() {
-	//create syncronization structures
+	//create synchronization structures
 	//one fence to control when the gpu has finished rendering the frame,
-	//and 2 semaphores to syncronize rendering with swapchain
+	//and 2 semaphores to synchronize rendering with swapchain
 	VkFenceCreateInfo fence_info =
 			vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 	VkSemaphoreCreateInfo semaphore_info = vkinit::semaphore_create_info();
@@ -588,19 +588,20 @@ void VulkanEngine::init_descriptors() {
 	_draw_image_descriptors = _global_descriptor_allocator.allocate(
 			_device, _draw_image_descriptor_layout);
 
-	VkDescriptorImageInfo img_info{};
-	img_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	img_info.imageView = _draw_image.image_view;
+	VkDescriptorImageInfo img_info = {
+		.imageView = _draw_image.image_view,
+		.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+	};
 
-	VkWriteDescriptorSet draw_image_write = {};
-	draw_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	draw_image_write.pNext = nullptr;
-
-	draw_image_write.dstBinding = 0;
-	draw_image_write.dstSet = _draw_image_descriptors;
-	draw_image_write.descriptorCount = 1;
-	draw_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	draw_image_write.pImageInfo = &img_info;
+	VkWriteDescriptorSet draw_image_write = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.pNext = nullptr,
+		.dstSet = _draw_image_descriptors,
+		.dstBinding = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+		.pImageInfo = &img_info,
+	};
 
 	vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, nullptr);
 }
@@ -611,23 +612,23 @@ void VulkanEngine::init_pipelines() {
 }
 
 void VulkanEngine::init_background_pipelines() {
-	VkPipelineLayoutCreateInfo compute_layout_create_info{};
-	compute_layout_create_info.sType =
-			VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	compute_layout_create_info.pNext = nullptr;
-	compute_layout_create_info.pSetLayouts = &_draw_image_descriptor_layout;
-	compute_layout_create_info.setLayoutCount = 1;
+	VkPushConstantRange push_constants = {
+		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+		.offset = 0,
+		.size = sizeof(ComputePushConstants),
+	};
 
-	VkPushConstantRange push_constants{};
-	push_constants.offset = 0;
-	push_constants.size = sizeof(ComputePushConstants);
-	push_constants.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-	compute_layout_create_info.pushConstantRangeCount = 1;
-	compute_layout_create_info.pPushConstantRanges = &push_constants;
+	VkPipelineLayoutCreateInfo compute_layout_create_info = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pNext = nullptr,
+		.setLayoutCount = 1,
+		.pSetLayouts = &_draw_image_descriptor_layout,
+		.pushConstantRangeCount = 1,
+		.pPushConstantRanges = &push_constants,
+	};
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &compute_layout_create_info,
-			nullptr, &_gradient_pipeline_layout));
+			nullptr, &_background_pipeline_layout));
 
 	// layout code
 	VkShaderModule gradient_shader;
@@ -641,28 +642,26 @@ void VulkanEngine::init_background_pipelines() {
 		fmt::print("Error when building the compute shader!\n");
 	}
 
-	VkPipelineShaderStageCreateInfo stage_info{};
-	stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stage_info.pNext = nullptr;
-	stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stage_info.module = gradient_shader;
-	stage_info.pName = "main";
+	VkPipelineShaderStageCreateInfo stage_info =
+			vkinit::pipeline_shader_stage_create_info(
+					VK_SHADER_STAGE_COMPUTE_BIT, gradient_shader);
 
-	VkComputePipelineCreateInfo compute_pipeline_create_info = {};
-	compute_pipeline_create_info.sType =
-			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	compute_pipeline_create_info.pNext = nullptr;
-	compute_pipeline_create_info.layout = _gradient_pipeline_layout;
-	compute_pipeline_create_info.stage = stage_info;
+	VkComputePipelineCreateInfo compute_pipeline_create_info = {
+		.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+		.pNext = nullptr,
+		.stage = stage_info,
+		.layout = _background_pipeline_layout,
+	};
 
-	ComputeEffect gradient;
-	gradient.layout = _gradient_pipeline_layout;
-	gradient.name = "gradient";
-	gradient.data = {};
-
-	//default colors
-	gradient.data.data1 = glm::vec4(1, 0, 0, 1);
-	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+	ComputeEffect gradient = {
+		.name = "gradient",
+		.layout = _background_pipeline_layout,
+		.data = {
+            //default colors
+            .data1 = glm::vec4(1, 0, 0, 1),
+            .data2 = glm::vec4(0, 0, 1, 1),
+        },
+	};
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1,
 			&compute_pipeline_create_info, nullptr, &gradient.pipeline));
@@ -670,12 +669,14 @@ void VulkanEngine::init_background_pipelines() {
 	// change the shader module only to create the sky shader
 	compute_pipeline_create_info.stage.module = sky_shader;
 
-	ComputeEffect sky;
-	sky.layout = _gradient_pipeline_layout;
-	sky.name = "sky";
-	sky.data = {};
-	//default sky parameters
-	sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
+	ComputeEffect sky = {
+		.name = "sky",
+		.layout = _background_pipeline_layout,
+		.data = {
+            // default sky parameters
+            .data1 = glm::vec4(0.1, 0.2, 0.4, 0.97),
+        },
+	};
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1,
 			&compute_pipeline_create_info, nullptr, &sky.pipeline));
@@ -688,7 +689,7 @@ void VulkanEngine::init_background_pipelines() {
 	vkDestroyShaderModule(_device, sky_shader, nullptr);
 
 	_deletion_queue.push_function([this, gradient, sky]() {
-		vkDestroyPipelineLayout(_device, _gradient_pipeline_layout, nullptr);
+		vkDestroyPipelineLayout(_device, _background_pipeline_layout, nullptr);
 		vkDestroyPipeline(_device, gradient.pipeline, nullptr);
 		vkDestroyPipeline(_device, sky.pipeline, nullptr);
 	});

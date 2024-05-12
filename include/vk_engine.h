@@ -127,7 +127,7 @@ private:
 	VkDescriptorSetLayout _draw_image_descriptor_layout;
 
 	// VkPipeline _gradient_pipeline;
-	VkPipelineLayout _gradient_pipeline_layout;
+	VkPipelineLayout _background_pipeline_layout;
 
 	std::vector<ComputeEffect> _background_effects;
 	int _current_background_effect{ 0 };
