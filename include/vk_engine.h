@@ -58,10 +58,11 @@ public:
 	// run main loop
 	void run();
 
-	// draw loop
+private:
 	void draw();
 
-private:
+	void draw_geometry(VkCommandBuffer cmd);
+
 	void draw_background(VkCommandBuffer cmd);
 
 	void init_vulkan();
@@ -81,6 +82,8 @@ private:
 	void init_pipelines();
 
 	void init_background_pipelines();
+
+	void init_triangle_pipeline();
 
 	FrameData& get_current_frame() {
 		return _frames[_frame_number % FRAME_OVERLAP];
@@ -128,6 +131,9 @@ private:
 
 	std::vector<ComputeEffect> _background_effects;
 	int _current_background_effect{ 0 };
+
+	VkPipelineLayout _triangle_pipeline_layout;
+	VkPipeline _triangle_pipeline;
 
 private:
 	// imgui stuff

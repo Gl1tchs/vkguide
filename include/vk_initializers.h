@@ -41,4 +41,10 @@ VkRenderingInfo rendering_info(VkExtent2D render_extent,
 		VkRenderingAttachmentInfo* color_attachment,
 		VkRenderingAttachmentInfo* depth_attachment);
 
+VkPipelineLayoutCreateInfo pipeline_layout_create_info();
+
+VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(
+		VkShaderStageFlagBits stage, VkShaderModule shader_module,
+		const char* entry = "main");
+
 } //namespace vkinit

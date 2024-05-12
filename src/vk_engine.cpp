@@ -118,7 +118,7 @@ void VulkanEngine::run() {
 			ComputeEffect& selected =
 					_background_effects[_current_background_effect];
 
-            // draw combo box for shader selection
+			// draw combo box for shader selection
 			{
 				static auto get_effect_name = [](const ComputeEffect& effect) {
 					return effect.name;
@@ -185,16 +185,19 @@ void VulkanEngine::draw() {
 		vkutil::transition_image(cmd, _draw_image.image,
 				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-		// actual drawing code
-		{
-			// clear color
-			draw_background(cmd);
-		}
+		draw_background(cmd);
+
+		vkutil::transition_image(cmd, _draw_image.image,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+		draw_geometry(cmd);
 
 		// transition the draw image and the swapchain image into their correct
 		// transfer layouts
 		vkutil::transition_image(cmd, _draw_image.image,
-				VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 		vkutil::transition_image(cmd, _swapchain_images[swapchain_image_index],
 				VK_IMAGE_LAYOUT_UNDEFINED,
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -264,6 +267,42 @@ void VulkanEngine::draw() {
 
 	// increase the number of frames drawn
 	_frame_number++;
+}
+
+void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
+	// begin a render pass  connected to our draw image
+	VkRenderingAttachmentInfo color_attachment = vkinit::attachment_info(
+			_draw_image.image_view, nullptr, VK_IMAGE_LAYOUT_GENERAL);
+
+	VkRenderingInfo render_info =
+			vkinit::rendering_info(_draw_extent, &color_attachment, nullptr);
+	vkCmdBeginRendering(cmd, &render_info);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _triangle_pipeline);
+
+	// set dynamic viewport and scissor
+	VkViewport viewport = {};
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = _draw_extent.width;
+	viewport.height = _draw_extent.height;
+	viewport.minDepth = 0.f;
+	viewport.maxDepth = 1.f;
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D scissor = {};
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent.width = _draw_extent.width;
+	scissor.extent.height = _draw_extent.height;
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	// launch a draw command to draw 3 vertices
+	vkCmdDraw(cmd, 3, 1, 0, 0);
+
+	vkCmdEndRendering(cmd);
 }
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd) {
@@ -566,7 +605,10 @@ void VulkanEngine::init_descriptors() {
 	vkUpdateDescriptorSets(_device, 1, &draw_image_write, 0, nullptr);
 }
 
-void VulkanEngine::init_pipelines() { init_background_pipelines(); }
+void VulkanEngine::init_pipelines() {
+	init_background_pipelines();
+	init_triangle_pipeline();
+}
 
 void VulkanEngine::init_background_pipelines() {
 	VkPipelineLayoutCreateInfo compute_layout_create_info{};
@@ -649,6 +691,66 @@ void VulkanEngine::init_background_pipelines() {
 		vkDestroyPipelineLayout(_device, _gradient_pipeline_layout, nullptr);
 		vkDestroyPipeline(_device, gradient.pipeline, nullptr);
 		vkDestroyPipeline(_device, sky.pipeline, nullptr);
+	});
+}
+
+void VulkanEngine::init_triangle_pipeline() {
+	VkShaderModule triangle_frag_shader;
+	if (!vkutil::load_shader_module(
+				"colored_triangle.frag.spv", _device, &triangle_frag_shader)) {
+		fmt::print("Error when building the triangle fragment shader!\n");
+	} else {
+		fmt::print("Triangle fragment shader successfully loaded");
+	}
+
+	VkShaderModule triangle_vert_shader;
+	if (!vkutil::load_shader_module(
+				"colored_triangle.vert.spv", _device, &triangle_vert_shader)) {
+		fmt::print("Error when building the triangle vertex shader!\n");
+	} else {
+		fmt::print("Triangle vertex shader succesfsully loaded");
+	}
+
+	// build the pipeline layout that controls the inputs/outputs of the shader
+	// we are not using descriptor sets or other systems yet, so no need to use
+	// anything other than empty default
+	VkPipelineLayoutCreateInfo pipeline_layout_info =
+			vkinit::pipeline_layout_create_info();
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr,
+			&_triangle_pipeline_layout));
+
+	PipelineBuilder pipeline_builder;
+	// use the triangle layout we created
+	pipeline_builder.set_layout(_triangle_pipeline_layout);
+	// connecting the vertex and pixel shaders to the pipeline
+	pipeline_builder.set_shaders(triangle_vert_shader, triangle_frag_shader);
+	// it will draw triangles
+	pipeline_builder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	// filled triangles
+	pipeline_builder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	// no backface culling
+	pipeline_builder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	// no multisampling
+	pipeline_builder.set_multisampling_none();
+	// no blending
+	pipeline_builder.disable_blending();
+	// no depth testing
+	pipeline_builder.disable_depthtest();
+
+	// connect the image format we will draw into, from draw image
+	pipeline_builder.set_color_attachment_format(_draw_image.image_format);
+	pipeline_builder.set_depth_format(VK_FORMAT_UNDEFINED);
+
+	// finally build the pipeline
+	_triangle_pipeline = pipeline_builder.build_pipeline(_device);
+
+	// clean structures
+	vkDestroyShaderModule(_device, triangle_frag_shader, nullptr);
+	vkDestroyShaderModule(_device, triangle_vert_shader, nullptr);
+
+	_deletion_queue.push_function([this]() {
+		vkDestroyPipelineLayout(_device, _triangle_pipeline_layout, nullptr);
+		vkDestroyPipeline(_device, _triangle_pipeline, nullptr);
 	});
 }
 
