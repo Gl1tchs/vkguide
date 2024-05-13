@@ -34,6 +34,9 @@ VkImageCreateInfo image_create_info(
 VkImageViewCreateInfo imageview_create_info(
 		VkFormat format, VkImage image, VkImageAspectFlags aspect_flags);
 
+VkRenderingAttachmentInfo depth_attachment_info(VkImageView view,
+		VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
 VkRenderingAttachmentInfo attachment_info(VkImageView view, VkClearValue* clear,
 		VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 

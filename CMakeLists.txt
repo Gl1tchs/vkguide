@@ -39,8 +39,10 @@ target_include_directories(vkguide PRIVATE
     ${fmt_INCLUDE_DIRS}
     ${glm_INCLUDE_DIRS}
     vendor/VulkanMemoryAllocator/include
+    vendor/fastgltf/include
     ${IMGUI_DIR}
     vendor/vk-bootstrap/src
+    vendor/stb
     ${CMAKE_BINARY_DIR}/include
 )
 
@@ -49,5 +51,6 @@ target_link_libraries(vkguide PRIVATE
     SDL2::SDL2
     fmt::fmt
     GPUOpen::VulkanMemoryAllocator
+    fastgltf
     vk-bootstrap::vk-bootstrap
 )

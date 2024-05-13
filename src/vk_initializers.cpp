@@ -151,6 +151,21 @@ VkImageViewCreateInfo vkinit::imageview_create_info(
 	return info;
 }
 
+VkRenderingAttachmentInfo vkinit::depth_attachment_info(VkImageView view,
+		VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/) {
+	VkRenderingAttachmentInfo depth_attachment{};
+	depth_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	depth_attachment.pNext = nullptr;
+
+	depth_attachment.imageView = view;
+	depth_attachment.imageLayout = layout;
+	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	depth_attachment.clearValue.depthStencil.depth = 0.f;
+
+	return depth_attachment;
+}
+
 VkRenderingAttachmentInfo vkinit::attachment_info(VkImageView view,
 		VkClearValue* clear,
 		VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/) {
@@ -198,6 +213,7 @@ VkPipelineLayoutCreateInfo vkinit::pipeline_layout_create_info() {
 	info.pSetLayouts = nullptr;
 	info.pushConstantRangeCount = 0;
 	info.pPushConstantRanges = nullptr;
+
 	return info;
 }
 
