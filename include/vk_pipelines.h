@@ -2,15 +2,14 @@
 
 #include "vk_types.h"
 
-class PipelineBuilder {
-public:
+struct PipelineBuilder {
+	VkPipelineLayout pipeline_layout;
+
 	PipelineBuilder() { clear(); }
 
 	void clear();
 
 	VkPipeline build_pipeline(VkDevice device);
-
-	void set_layout(VkPipelineLayout layout);
 
 	void set_shaders(
 			VkShaderModule vertex_shader, VkShaderModule fragment_shader);
@@ -44,7 +43,6 @@ private:
 	VkPipelineRasterizationStateCreateInfo _rasterizer;
 	VkPipelineColorBlendAttachmentState _color_blend_attachment;
 	VkPipelineMultisampleStateCreateInfo _multisampling;
-	VkPipelineLayout _pipeline_layout;
 	VkPipelineDepthStencilStateCreateInfo _depth_stencil;
 	VkPipelineRenderingCreateInfo _render_info;
 	VkFormat _color_attachment_format;

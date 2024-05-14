@@ -1,5 +1,5 @@
 GLSLC = glslc
-GLSL_FLAGS = -I include --target-env=vulkan1.3 -std=460 -O
+GLSL_FLAGS = -I include --target-env=vulkan1.3 -std=450 -O
 
 SRC_DIR = src
 BUILD_DIR = ../build/shaders
@@ -16,7 +16,7 @@ all: $(SPV_VS) $(SPV_FS) $(SPV_COMP) bundle_shaders
 
 $(BUILD_DIR)/%.vert.spv: $(SRC_DIR)/%.vert
 	@mkdir -p $(BUILD_DIR)
-	$(GLSLC) $(GLSL_FLAGS) -g -o $@ $<
+	$(GLSLC) $(GLSL_FLAGS) -o $@ $<
 
 $(BUILD_DIR)/%.frag.spv: $(SRC_DIR)/%.frag
 	@mkdir -p $(BUILD_DIR)

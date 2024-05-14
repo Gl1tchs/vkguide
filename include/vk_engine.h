@@ -26,6 +26,9 @@ struct FrameData {
 
 	VkSemaphore swapchain_semaphore, render_semaphore;
 	VkFence render_fence;
+
+	DeletionQueue deletion_queue;
+	DescriptorAllocatorGrowable frame_descriptors;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -46,6 +49,69 @@ struct ComputeEffect {
 	ComputePushConstants data;
 };
 
+struct GPUSceneData {
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::mat4 viewproj;
+	glm::vec4 ambient_color;
+	glm::vec4 sunlight_direction; // w for sun power
+	glm::vec4 sunlight_color;
+};
+
+struct GLTFMetallic_Roughness {
+	MaterialPipeline opaque_pipeline;
+	MaterialPipeline transparent_pipeline;
+
+	VkDescriptorSetLayout material_layout;
+
+	struct MaterialConstants {
+		glm::vec4 color_factors;
+		glm::vec4 metal_rough_factors;
+		// padding, we need it anyway for uniform buffers
+		glm::vec4 extra[4];
+	};
+
+	struct MaterialResources {
+		AllocatedImage color_image;
+		VkSampler color_sampler;
+		AllocatedImage metal_roughness_image;
+		VkSampler metal_roughness_sampler;
+		VkBuffer data_buffer;
+		uint32_t data_buffer_offset;
+	};
+
+	DescriptorWriter writer;
+
+	void build_pipeline(VulkanEngine* engine);
+
+	void clear_resources(VkDevice device);
+
+	MaterialInstance write_material(VkDevice device, MaterialPass pass,
+			const MaterialResources& resources,
+			DescriptorAllocatorGrowable& descriptor_allocator);
+};
+
+struct RenderObject {
+	uint32_t index_count;
+	uint32_t first_index;
+	VkBuffer index_buffer;
+
+	MaterialInstance* material;
+
+	glm::mat4 transform;
+	VkDeviceAddress vertex_buffer_address;
+};
+
+struct DrawContext {
+	std::vector<RenderObject> opaque_surfaces;
+};
+
+struct MeshNode : public Node {
+	std::shared_ptr<MeshAsset> mesh;
+
+	void draw(const glm::mat4& top_matrix, DrawContext& ctx) override;
+};
+
 class VulkanEngine {
 public:
 	static VulkanEngine& get();
@@ -59,8 +125,18 @@ public:
 	// run main loop
 	void run();
 
+	void update_scene();
+
 	GPUMeshBuffers upload_mesh(
 			std::span<uint32_t> indices, std::span<Vertex> vertices);
+
+	AllocatedImage create_image(VkExtent3D size, VkFormat format,
+			VkImageUsageFlags usage, bool mipmapped = false);
+
+	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format,
+			VkImageUsageFlags usage, bool mipmapped = false);
+
+	void destroy_image(const AllocatedImage& img);
 
 private:
 	void init_default_data();
@@ -137,10 +213,11 @@ private:
 	VkQueue _graphics_queue;
 	uint32_t _graphics_queue_family;
 
-	DescriptorAllocator _global_descriptor_allocator;
+	DescriptorAllocatorGrowable _global_descriptor_allocator;
 
 	VkDescriptorSet _draw_image_descriptors;
 	VkDescriptorSetLayout _draw_image_descriptor_layout;
+	VkDescriptorSetLayout _single_image_descriptor_layout;
 
 	VkPipelineLayout _background_pipeline_layout;
 	std::vector<ComputeEffect> _background_effects;
@@ -150,6 +227,27 @@ private:
 	VkPipeline _mesh_pipeline;
 
 	std::vector<std::shared_ptr<MeshAsset>> _test_meshes;
+
+	GPUSceneData _scene_data;
+	VkDescriptorSetLayout _gpu_scene_data_descriptor_layout;
+
+	// some default textures
+	AllocatedImage _white_image;
+	AllocatedImage _black_image;
+	AllocatedImage _grey_image;
+	AllocatedImage _error_checkerboard_image;
+
+	VkSampler _default_sampler_linear;
+	VkSampler _default_sampler_nearest;
+
+	// default material
+	MaterialInstance _default_data;
+	GLTFMetallic_Roughness _metal_rough_material;
+
+	DrawContext _main_draw_context;
+	std::unordered_map<std::string, std::shared_ptr<Node>> _loaded_nodes;
+
+	friend struct GLTFMetallic_Roughness;
 
 private:
 	VkFence _imm_fence;

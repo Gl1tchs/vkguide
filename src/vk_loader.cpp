@@ -125,7 +125,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> load_gltf_meshes(
 		}
 
 		// display the vertex normals
-		constexpr bool OVERRIDE_COLORS = true;
+		constexpr bool OVERRIDE_COLORS = false;
 		if (OVERRIDE_COLORS) {
 			for (Vertex& vtx : vertices) {
 				vtx.color = glm::vec4(vtx.normal, 1.f);

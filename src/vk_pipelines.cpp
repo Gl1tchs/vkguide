@@ -21,7 +21,7 @@ void PipelineBuilder::clear() {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 	};
 
-	_pipeline_layout = {};
+	pipeline_layout = {};
 
 	_depth_stencil = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
@@ -60,8 +60,10 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device) {
 	};
 
 	// create dynamic state
-	VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT,
-		VK_DYNAMIC_STATE_SCISSOR };
+	VkDynamicState state[] = {
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+	};
 
 	VkPipelineDynamicStateCreateInfo dynamic_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
@@ -86,7 +88,7 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device) {
 		.pDepthStencilState = &_depth_stencil,
 		.pColorBlendState = &color_blending,
 		.pDynamicState = &dynamic_info,
-		.layout = _pipeline_layout,
+		.layout = pipeline_layout,
 	};
 
 	// its easy to error out on create graphics pipeline, so we handle it a bit
@@ -99,10 +101,6 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device) {
 	}
 
 	return new_pipeline;
-}
-
-void PipelineBuilder::set_layout(VkPipelineLayout layout) {
-	_pipeline_layout = layout;
 }
 
 void PipelineBuilder::set_shaders(
@@ -241,8 +239,8 @@ bool vkutil::load_shader_module(const char* file_path, VkDevice device,
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	create_info.pNext = nullptr;
 
-	// codeSize has to be in bytes, so multply the ints in the buffer by size of
-	// int to know the real size of the buffer
+	// codeSize has to be in bytes, so multiply the ints in the buffer by size
+	// of int to know the real size of the buffer
 	create_info.codeSize = shader_data.size;
 	create_info.pCode = (uint32_t*)&BUNDLE_DATA[shader_data.start_idx];
 
